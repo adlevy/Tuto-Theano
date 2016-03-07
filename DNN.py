@@ -28,12 +28,12 @@ suitable for large datasets.
 
 References:
 
-    - textbooks: "Pattern Recognition and Machine Learning" -
+    - texern Recognition and Machine Learning" -
                  Christopher M. Bishop, section 4.3.2
 
 """
 
-from __future__ import print_function
+
 
 __docformat__ = 'restructedtext en'
 
@@ -948,3 +948,6 @@ def predict():
 
 if __name__ == '__main__':
     sgd_optimization_mnist()
+
+
+

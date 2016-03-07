@@ -163,78 +163,78 @@ class couche_sortie(object):
 
 
 class couche_cache(object):
-	
-	def _init_(self,rng,input,n_in,n_out,W=None,b=None,activation=T.tanh):
-		
-		
-		self.input = input
-		
-		
-		if (W is None) :
-			W_values = numpy.asarray(
-				rng.uniform(
-					low = -numpy.sqrt(6. / (n_in + n_out)  ),
-					high = numpy.sqrt(6. / (n_in + n_out) ),
-					size = (n_in,n_out)
-				),
-				dtype = theano.config.floatX
-			)
-			if(activation == theano.tensor.nnet.sigmoid):
-				W_values *= 4
-			
-			W = theano.shared(value=W_values,name='W', borrow=True)		
-		
-		if b is None:
-			b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
-			b = theano.shared(value=b_values, name='b', borrow=True)	
-		
-		self.W = W
-		self.b = b
-		
-		
-		lin_output = T.dot(input, self.W) + self.b
-		
-		if activation is None :
-			self.output = lin_output
-		else:
-			self.output = activation(lin_output)
+
+    def _init_(self,rng,input,n_in,n_out,W=None,b=None,activation=T.tanh):
+
+
+        self.input = input
+
+
+        if (W is None) :
+            W_values = numpy.asarray(
+                rng.uniform(
+                    low = -numpy.sqrt(6. / (n_in + n_out)  ),
+                    high = numpy.sqrt(6. / (n_in + n_out) ),
+                    size = (n_in,n_out)
+                ),
+                dtype = theano.config.floatX
+            )
+            if(activation == theano.tensor.nnet.sigmoid):
+                W_values *= 4
+
+            W = theano.shared(value=W_values,name='W', borrow=True)
+
+        if b is None:
+            b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
+            b = theano.shared(value=b_values, name='b', borrow=True)
+
+        self.W = W
+        self.b = b
+
+
+        lin_output = T.dot(input, self.W) + self.b
+
+        if activation is None :
+            self.output = lin_output
+        else:
+            self.output = activation(lin_output)
          
         self.y_pred = T.argmax(self.output, axis=1)
 
-	
+
 class reseau(object):
-	def _init_(self, rng, input, n_in, n_out):
-		
-		
-		self.couche1 = couche_cache(rng=rng, input=input, n_in=n_in,n_out=n_hidden1,activation=T.tanh)
-		self.couche2 = couche_cache(rng=rng, input=self.couche1.output, n_in=n_hidden1,n_out=n_hidden2,activation=T.tanh)
-		self.couche3 = couche_sortie(input=self.couche2.output, n_in=n_hidden2,n_out=n_out)
-		
-		self.L1 = ( abs(self.couche1.W).sum()+
-					abs(self.couche2.W).sum()+
-					abs(self.couche3.W).sum()
-				)
-			
-		self.L2 = ( (self.couche1.W ** 2).sum()+
-					(self.couche2.W ** 2).sum()+
-					(self.couche3.W ** 2).sum()
-				)
-				
-		self.negative_log_likelihood = (self.couche3.negative_log_likelihood) 
-		
-		self.errors = self.couche3.errors
-		
-		self.params = self.couche1.params + self.couche2.params + self.couche3.params
-		
-		self.input = input
-		
-		
+    def _init_(self, rng, input, n_in, n_out):
+
+
+        self.couche1 = couche_cache(rng=rng, input=input, n_in=n_in,n_out=n_hidden1,activation=T.tanh)
+        self.couche2 = couche_cache(rng=rng, input=self.couche1.output, n_in=n_hidden1,n_out=n_hidden2,activation=T.tanh)
+        self.couche3 = couche_sortie(input=self.couche2.output, n_in=n_hidden2,n_out=n_out)
+
+        self.L1 = ( abs(self.couche1.W).sum()+
+                    abs(self.couche2.W).sum()+
+                    abs(self.couche3.W).sum()
+                )
+
+        self.L2 = ( (self.couche1.W ** 2).sum()+
+                    (self.couche2.W ** 2).sum()+
+                    (self.couche3.W ** 2).sum()
+                )
+
+        self.negative_log_likelihood = (self.couche3.negative_log_likelihood)
+
+        self.errors = self.couche3.errors
+
+        self.params = self.couche1.params + self.couche2.params + self.couche3.params
+
+        self.input = input
+
+
 def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
              dataset='mnist.pkl.gz', batch_size=20, n_hidden=500):
              
              
-	datasets = load_data(dataset)
-	train_set_x, train_set_y = datasets[0]
+    datasets = load_data(dataset)
+    train_set_x, train_set_y = datasets[0]
     valid_set_x, valid_set_y = datasets[1]
     test_set_x, test_set_y = datasets[2]
 

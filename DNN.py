@@ -17,6 +17,10 @@ import theano.tensor as T
 def load_data(dataset):
     ''' Loads the dataset
 
+
+    test github
+
+
     :type dataset: string
     :param dataset: the path to the dataset (here MNIST)
     '''
@@ -96,7 +100,6 @@ def load_data(dataset):
 
 
 class couche_sortie(object):
-    
 
     def __init__(self, input, n_in, n_out):
         

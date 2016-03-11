@@ -52,12 +52,14 @@ class recurrent_layer(object):
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         # Randomly initialize the network parameters
-        self.U = rng.uniform(-np.sqrt(1./input_dim), np.sqrt(1./input_dim), (hidden_dim, input_dim))
+        self.input = input
         self.V = rng.uniform(-np.sqrt(1./hidden_dim), np.sqrt(1./hidden_dim), (input_dim, hidden_dim))
         self.W = rng.uniform(-np.sqrt(1./hidden_dim), np.sqrt(1./hidden_dim), (hidden_dim, hidden_dim))
 
         b_values = numpy.zeros((hidden_dim,), dtype=theano.config.floatX)
         self.b = theano.shared(value=b_values, name='b', borrow=True)
+
+
 
 
 class regression_layer(object):

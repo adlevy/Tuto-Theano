@@ -46,20 +46,41 @@ def load_data(audioDir):
 
 class recurrent_layer(object):
     #voir : http://www.wildml.com/2015/09/recurrent-neural-networks-tutorial-part-2-implementing-a-language-model-rnn-with-python-numpy-and-theano/
-    def __init__(self,rng, input, input_dim, hidden_dim, activation):
 
-        # Assign instance variables
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
-        # Randomly initialize the network parameters
+
+    def __init__(self, rng, input, n_in, n_out, W=None, b=None,
+                 activation=T.tanh):
+
         self.input = input
-        self.V = rng.uniform(-np.sqrt(1./hidden_dim), np.sqrt(1./hidden_dim), (input_dim, hidden_dim))
-        self.W = rng.uniform(-np.sqrt(1./hidden_dim), np.sqrt(1./hidden_dim), (hidden_dim, hidden_dim))
 
-        b_values = numpy.zeros((hidden_dim,), dtype=theano.config.floatX)
-        self.b = theano.shared(value=b_values, name='b', borrow=True)
+        if W is None:
+            W_values = numpy.asarray(
+                rng.uniform(
+                    low=-numpy.sqrt(6. / (n_in + n_out)),
+                    high=numpy.sqrt(6. / (n_in + n_out)),
+                    size=(n_in, n_out)
+                ),
+                dtype=theano.config.floatX
+            )
+            if activation == theano.tensor.nnet.sigmoid:
+                W_values *= 4
 
+            W = theano.shared(value=W_values, name='W', borrow=True)
 
+        if b is None:
+            b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
+            b = theano.shared(value=b_values, name='b', borrow=True)
+
+        self.W = W
+        self.b = b
+        self.memory=
+        lin_output = T.dot(input, self.W) + self.b
+        self.output = (
+            lin_output if activation is None
+            else activation(lin_output)
+        )
+
+        self.params = [self.W, self.b]
 
 
 class regression_layer(object):
@@ -224,8 +245,8 @@ class RNNN(object):
         self.hiddenLayer = recurrent_layer(
             rng=rng,
             input=input,
-            input_dim=n_in,
-            hidden_dim=n_hidden,
+            n_in=n_in,
+            n_out=n_hidden,
             activation=T.tanh
         )
 

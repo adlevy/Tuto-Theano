@@ -24,7 +24,7 @@ References:
 import os
 import sys
 import time
-import cPickle as pickle
+import pickle
 
 import numpy
 

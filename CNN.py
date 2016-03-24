@@ -82,8 +82,8 @@ class LeNetConvPoolLayer(object):
         """
 
         assert image_shape[1] == filter_shape[1]# verification de nombre de filtre avec le nombre d'image
-        print "shape image  ",image_shape[1]
-        print "shape filter",filter_shape[1]
+        print ("shape image  ",image_shape[1])
+        print ("shape filter",filter_shape[1])
         self.input = input
 
         # there are "num input feature maps * filter height * filter width"
@@ -117,7 +117,7 @@ class LeNetConvPoolLayer(object):
 	    subsample=subsample
         )
         #conv_out_relu=relu(conv_out+self.b.dimshuffle('x', 0, 'x', 'x'))
-      #  print "conv relu ",conv_out_relu
+      #  print ("conv relu ",conv_out_relu)
         #Relu layer :
       #  reluLay = HiddenLayer(
       #  rng,
@@ -177,6 +177,7 @@ def evaluate_lenet5(learning_rate=0.05, n_epochs=1000,
     n_train_batches /= batch_size
     n_valid_batches /= batch_size
     n_test_batches /= batch_size
+    """
     print 'n_train_batches=', n_train_batches
     print 'n_valid_batches=', n_valid_batches
     print 'n_test_batches=', n_test_batches
@@ -184,7 +185,7 @@ def evaluate_lenet5(learning_rate=0.05, n_epochs=1000,
     print train_set_x.get_value(borrow=True).shape[0], train_set_x.get_value(borrow=True).shape[1]
     print valid_set_x.get_value(borrow=True).shape[0], valid_set_x.get_value(borrow=True).shape[1]
     print test_set_x.get_value(borrow=True).shape[0],test_set_x.get_value(borrow=True).shape[1]
-
+    """
     # allocate symbolic variables for the data
     index = T.lscalar()  # index to a [mini]batch
 
@@ -196,13 +197,13 @@ def evaluate_lenet5(learning_rate=0.05, n_epochs=1000,
     ######################
     # BUILD ACTUAL MODEL #
     ######################
-    print '... building the model'
+    print ('... building the model')
 
     # Reshape matrix of rasterized images of shape (batch_size, 28 * 28)
     # to a 4D tensor, compatible with our LeNetConvPoolLayer
     # (28, 28) is the size of MNIST images.
     nin=train_set_x.get_value(borrow=True).shape[1]
-    print "n_in=",nin
+    print ("n_in=",nin)
     layer0_input = x.reshape((batch_size, 1, nin,1))
 
     # Construct the first convolutional pooling layer:
@@ -223,7 +224,7 @@ def evaluate_lenet5(learning_rate=0.05, n_epochs=1000,
     # maxpooling reduces this further to (8/2, 8/2) = (4, 4)
     # 4D output tensor is thus of shape (batch_size, nkerns[1], 4, 4)
     nin1=(nin-c_filter+1)/m_pooling
-    print "nin1=",nin1
+    print ("nin1=",nin1)
     layer1 = LeNetConvPoolLayer(
         rng,
         input=layer0.output,
@@ -233,7 +234,7 @@ def evaluate_lenet5(learning_rate=0.05, n_epochs=1000,
         poolsize=(m_pooling,1),
     )
     nin2=(nin1-c_filter+1)/m_pooling
-    print "nin2=",nin2
+    print ("nin2=",nin2)
     # the HiddenLayer being fully-connected, it operates on 2D matrices of
     # shape (batch_size, num_pixels) (i.e matrix of rasterized images).
     # This will generate a matrix of shape (batch_size, nkerns[1] * 4 * 4),
@@ -351,7 +352,7 @@ def evaluate_lenet5(learning_rate=0.05, n_epochs=1000,
     ###############
     # TRAIN MODEL #
     ###############
-    print '... training'
+    print ('... training')
     # early-stopping parameters
     patience = 10000  # look as this many examples regardless
     patience_increase = 2  # wait this much longer when a new best is
@@ -379,7 +380,7 @@ def evaluate_lenet5(learning_rate=0.05, n_epochs=1000,
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
             if iter % 100 == 0:
-                print 'training @ iter = ', iter
+                print ('training @ iter = ', iter)
             cost_ij = train_model(minibatch_index)
 
             if (iter + 1) % validation_frequency == 0:
@@ -420,7 +421,7 @@ def evaluate_lenet5(learning_rate=0.05, n_epochs=1000,
 
                     Embedding_D = numpy.concatenate([get_hidden_values(i) for i
                                    in xrange(n_valid_batches)])
-                    print " len embed", len(Embedding_D)
+                    print (" len embed", len(Embedding_D))
                     predictions_D = numpy.concatenate([ygen_model_D(i) for i
                                    in xrange(n_valid_batches)])
                     labels_D = numpy.concatenate([sgen_label_D(i) for i
@@ -448,10 +449,10 @@ def evaluate_lenet5(learning_rate=0.05, n_epochs=1000,
 
     predictionsFilename = 'predictions/CNN/test/Test_prediction.HiddenLayer1' + wx  + '-h' + str(nbHidden)  + '-bsz'+str(batch_size) +'-lr'+str(learning_rate) + '-epoch' + str(epoch) +'-bestiter'+str(best_iter)+'-besttestscore'+ str(test_score)+act+'.txt'
     predictionsFile = open(predictionsFilename,'a')
-    #print "pred = ",len (predictions), "lable ",len (labels)
+    #print ("pred = ",len (predictions), "lable ",len (labels))
     for i in xrange(len (predictions)):
         predictionsFile.write(sconvert(labels[i])+' '+sconvert(predictions[i])+'\n')
-        #print sconvert(labels[i])+' '+sconvert(predictions[i])+'\n'
+        #print (sconvert(labels[i])+' '+sconvert(predictions[i])+'\n')
     predictionsFile.close()
 
     #savParamFileName='param/DNN/H1/test/Test-param.HiddenLayer1-2' + wx +  '-h' + str(nbHidden)  + '-bsz'+str(batch_size) +'-lr'+str(learning_rate) + '-epoch' + str(epoch) +'-bestiter'+str(best_iter)+'-besttestscore'+str(test_score)+act+'-finalwp100.pkl'
@@ -459,10 +460,10 @@ def evaluate_lenet5(learning_rate=0.05, n_epochs=1000,
    #dev :
     predictionsFilename = 'predictions/CNN/dev/Dev_prediction.HiddenLayer1' + wx  + '-h' + str(nbHidden)  + '-bsz'+str(batch_size) +'-lr'+str(learning_rate) + '-epoch' + str(epoch) +'-bestiter'+str(best_iter)+'-bestdevscore'+ str(best_validation_loss * 100)+act+'.txt'
     predictionsFile = open(predictionsFilename,'a')
-    #print "pred = ",len (predictions), "lable ",len (labels)
+    #print ("pred = ",len (predictions), "lable ",len (labels))
     for i in xrange(len (predictions_D)):
         predictionsFile.write(sconvert(labels_D[i])+' '+sconvert(predictions_D[i])+'\n')
-        #print sconvert(labels[i])+' '+sconvert(predictions[i])+'\n'
+        #print (sconvert(labels[i])+' '+sconvert(predictions[i])+'\n')
     predictionsFile.close()
 
     savParamFileName='param/CNN/param.HiddenLayer1'+ wx +  '-h' + str(nbHidden)  + '-bsz'+str(batch_size) +'-lr'+str(learning_rate) + '-epoch' + str(epoch) +'-bestiter'+str(best_iter)+'-bestdevscore'+str(best_validation_loss * 100)+'-besttestscore'+str(test_score)+act+'-finalwp100.pkl'

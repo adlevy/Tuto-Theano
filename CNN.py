@@ -21,28 +21,39 @@ References:
    http://yann.lecun.com/exdb/publis/pdf/lecun-98.pdf
 
 """
-
-from __future__ import print_function
-
 import os
 import sys
-import timeit
+import time
+import cPickle as pickle
 
 import numpy
 
 import theano
 import theano.tensor as T
 from theano.tensor.signal import downsample
-from theano.tensor.nnet import conv2d
-
+from theano.tensor.nnet import conv
+import re
 from logistic_sgd import LogisticRegression, load_data
 from DNN import HiddenLayer
 
+if len(sys.argv) != 5 :
+    sys.exit('Usage: %s  nbHidden dataset filter_size maxpooling_size' % sys.argv[0])
+
+nbHidden = int(sys.argv[1])
+act='Tanh'
+
+datasetfilename = sys.argv[2]
+relu = lambda x : x * (x>0)
+c_filter = int(sys.argv[3])
+m_pooling = int(sys.argv[4])
+wx = re.sub('gz','',datasetfilename)+"filter-"+sys.argv[3]+"pooling"+sys.argv[4]+"Str5f15_5"
+print wx
+print type(wx), type(nbHidden)
 
 class LeNetConvPoolLayer(object):
     """Pool Layer of a convolutional network """
 
-    def __init__(self, rng, input, filter_shape, image_shape, poolsize=(2, 2)):
+    def __init__(self, rng, input, filter_shape, image_shape,subsample,poolsize):
         """
         Allocate a LeNetConvPoolLayer with shared variable internal parameters.
 
@@ -62,9 +73,17 @@ class LeNetConvPoolLayer(object):
 
         :type poolsize: tuple or list of length 2
         :param poolsize: the downsampling (pooling) factor (#rows, #cols)
+        :type subsample: tuple of len 2
+        :param subsample: factor by which to subsample the output.
+                      Also called strides elsewhere
+        :type stride: tuple of lenght 2
+        :param stride: stride size, which is the number of shifts over rows/cols to get the the next pool region.
+        if st is None, it is considered equal to ds
         """
 
-        assert image_shape[1] == filter_shape[1]
+        assert image_shape[1] == filter_shape[1]# verification de nombre de filtre avec le nombre d'image
+        print "shape image  ",image_shape[1]
+        print "shape filter",filter_shape[1]
         self.input = input
 
         # there are "num input feature maps * filter height * filter width"
@@ -73,7 +92,7 @@ class LeNetConvPoolLayer(object):
         # each unit in the lower layer receives a gradient from:
         # "num output feature maps * filter height * filter width" /
         #   pooling size
-        fan_out = (filter_shape[0] * numpy.prod(filter_shape[2:]) //
+        fan_out = (filter_shape[0] * numpy.prod(filter_shape[2:]) /
                    numpy.prod(poolsize))
         # initialize weights with random weights
         W_bound = numpy.sqrt(6. / (fan_in + fan_out))
@@ -90,18 +109,28 @@ class LeNetConvPoolLayer(object):
         self.b = theano.shared(value=b_values, borrow=True)
 
         # convolve input feature maps with filters
-        conv_out = conv2d(
+        conv_out = conv.conv2d(
             input=input,
             filters=self.W,
             filter_shape=filter_shape,
-            image_shape=image_shape
+            image_shape=image_shape,
+	    subsample=subsample
         )
-
+        #conv_out_relu=relu(conv_out+self.b.dimshuffle('x', 0, 'x', 'x'))
+      #  print "conv relu ",conv_out_relu
+        #Relu layer :
+      #  reluLay = HiddenLayer(
+      #  rng,
+       # input=conv_out,
+       # n_in=relu_input,
+       # n_out=relu_input,
+       # activation=relu
+        # )
         # downsample each feature map individually, using maxpooling
         pooled_out = downsample.max_pool_2d(
             input=conv_out,
             ds=poolsize,
-            ignore_border=True
+            ignore_border=True#a voir si on modifier
         )
 
         # add the bias term. Since the bias is a vector (1D array), we first
@@ -109,17 +138,14 @@ class LeNetConvPoolLayer(object):
         # thus be broadcasted across mini-batches and feature map
         # width & height
         self.output = T.tanh(pooled_out + self.b.dimshuffle('x', 0, 'x', 'x'))
-
+        #self.output = pooled_out
         # store parameters of this layer
         self.params = [self.W, self.b]
 
-        # keep track of model input
-        self.input = input
 
-
-def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
-                    dataset='mnist.pkl.gz',
-                    nkerns=[20, 50], batch_size=500):
+def evaluate_lenet5(learning_rate=0.05, n_epochs=1000,
+                    dataset=datasetfilename,
+                    nkerns=[15, 5], batch_size=1000,filter=c_filter, pooling=m_pooling):
     """ Demonstrates lenet on MNIST dataset
 
     :type learning_rate: float
@@ -148,9 +174,16 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
     n_train_batches = train_set_x.get_value(borrow=True).shape[0]
     n_valid_batches = valid_set_x.get_value(borrow=True).shape[0]
     n_test_batches = test_set_x.get_value(borrow=True).shape[0]
-    n_train_batches //= batch_size
-    n_valid_batches //= batch_size
-    n_test_batches //= batch_size
+    n_train_batches /= batch_size
+    n_valid_batches /= batch_size
+    n_test_batches /= batch_size
+    print 'n_train_batches=', n_train_batches
+    print 'n_valid_batches=', n_valid_batches
+    print 'n_test_batches=', n_test_batches
+    print '--------------------------------------'
+    print train_set_x.get_value(borrow=True).shape[0], train_set_x.get_value(borrow=True).shape[1]
+    print valid_set_x.get_value(borrow=True).shape[0], valid_set_x.get_value(borrow=True).shape[1]
+    print test_set_x.get_value(borrow=True).shape[0],test_set_x.get_value(borrow=True).shape[1]
 
     # allocate symbolic variables for the data
     index = T.lscalar()  # index to a [mini]batch
@@ -163,12 +196,14 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
     ######################
     # BUILD ACTUAL MODEL #
     ######################
-    print('... building the model')
+    print '... building the model'
 
     # Reshape matrix of rasterized images of shape (batch_size, 28 * 28)
     # to a 4D tensor, compatible with our LeNetConvPoolLayer
     # (28, 28) is the size of MNIST images.
-    layer0_input = x.reshape((batch_size, 1, 28, 28))
+    nin=train_set_x.get_value(borrow=True).shape[1]
+    print "n_in=",nin
+    layer0_input = x.reshape((batch_size, 1, nin,1))
 
     # Construct the first convolutional pooling layer:
     # filtering reduces the image size to (28-5+1 , 28-5+1) = (24, 24)
@@ -177,23 +212,28 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
     layer0 = LeNetConvPoolLayer(
         rng,
         input=layer0_input,
-        image_shape=(batch_size, 1, 28, 28),
-        filter_shape=(nkerns[0], 1, 5, 5),
-        poolsize=(2, 2)
+        image_shape=(batch_size, 1, nin,1),
+        filter_shape=(nkerns[0], 1, c_filter,1),
+	subsample=(1,5),
+        poolsize=(m_pooling,1),
     )
 
     # Construct the second convolutional pooling layer
     # filtering reduces the image size to (12-5+1, 12-5+1) = (8, 8)
     # maxpooling reduces this further to (8/2, 8/2) = (4, 4)
     # 4D output tensor is thus of shape (batch_size, nkerns[1], 4, 4)
+    nin1=(nin-c_filter+1)/m_pooling
+    print "nin1=",nin1
     layer1 = LeNetConvPoolLayer(
         rng,
         input=layer0.output,
-        image_shape=(batch_size, nkerns[0], 12, 12),
-        filter_shape=(nkerns[1], nkerns[0], 5, 5),
-        poolsize=(2, 2)
+        image_shape=(batch_size, nkerns[0], nin1,1),
+        filter_shape=(nkerns[1], nkerns[0],  c_filter,1),
+	subsample=(1,5),
+        poolsize=(m_pooling,1),
     )
-
+    nin2=(nin1-c_filter+1)/m_pooling
+    print "nin2=",nin2
     # the HiddenLayer being fully-connected, it operates on 2D matrices of
     # shape (batch_size, num_pixels) (i.e matrix of rasterized images).
     # This will generate a matrix of shape (batch_size, nkerns[1] * 4 * 4),
@@ -204,13 +244,20 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
     layer2 = HiddenLayer(
         rng,
         input=layer2_input,
-        n_in=nkerns[1] * 4 * 4,
-        n_out=500,
+        n_in=nkerns[1] * 1 * nin2,
+        n_out=nbHidden,
         activation=T.tanh
+    )
+    layer22 = HiddenLayer(
+        rng,
+        input=layer2.output,
+        n_in=nbHidden,
+        n_out=nbHidden,
+        activation=relu
     )
 
     # classify the values of the fully-connected sigmoidal layer
-    layer3 = LogisticRegression(input=layer2.output, n_in=500, n_out=10)
+    layer3 = LogisticRegression(input=layer22.output, n_in=nbHidden, n_out=2)
 
     # the cost we minimize during training is the NLL of the model
     cost = layer3.negative_log_likelihood(y)
@@ -233,6 +280,42 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
             y: valid_set_y[index * batch_size: (index + 1) * batch_size]
         }
     )
+    # get hidden layer 2 ouptuts :
+    get_hidden_values = theano.function(inputs=[index],
+            outputs=layer22.output,
+            givens={x: valid_set_x[index * batch_size:(index + 1) * batch_size]},
+            on_unused_input = 'warn')
+
+    #Dev:
+
+    ygen_model_D = theano.function(inputs=[index],
+            outputs=layer3.y_pred,
+            givens={x: valid_set_x[index * batch_size:(index + 1) * batch_size]},
+            on_unused_input = 'warn')
+    #to generate the true labels
+    sgen_label_D =  theano.function(inputs=[index],
+            outputs=y,
+            givens={y: valid_set_y[index * batch_size:(index + 1) * batch_size]})
+
+
+    #test
+    ygen_model = theano.function(inputs=[index],
+            outputs=layer3.y_pred,
+            givens={x: test_set_x[index *  batch_size:(index + 1) *  batch_size]},
+            on_unused_input = 'warn')
+    #to generate the true labels
+    sgen_label = theano.function(inputs=[index],
+            outputs=y,
+            givens={y: test_set_y[index * batch_size:(index + 1) * batch_size]})
+
+    # Convert labels (1-> C and 0-->0)
+    def sconvert (a) :
+        if(a==1):
+                return ('C')
+        else:
+                return ('E')
+
+
 
     # create a list of all model parameters to be fit by gradient descent
     params = layer3.params + layer2.params + layer1.params + layer0.params
@@ -259,19 +342,23 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
             y: train_set_y[index * batch_size: (index + 1) * batch_size]
         }
     )
+    def save_param(filenameSave): #Yannick
+            """ Save parameters (weights, biases only for pretrained unit )"""
+            with open(filenameSave, 'wb') as fp:
+                pickle.dump(params, fp)
     # end-snippet-1
 
     ###############
     # TRAIN MODEL #
     ###############
-    print('... training')
+    print '... training'
     # early-stopping parameters
     patience = 10000  # look as this many examples regardless
     patience_increase = 2  # wait this much longer when a new best is
                            # found
     improvement_threshold = 0.995  # a relative improvement of this much is
                                    # considered significant
-    validation_frequency = min(n_train_batches, patience // 2)
+    validation_frequency = min(n_train_batches, patience / 2)
                                   # go through this many
                                   # minibatche before checking the network
                                   # on the validation set; in this case we
@@ -280,26 +367,26 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
     best_validation_loss = numpy.inf
     best_iter = 0
     test_score = 0.
-    start_time = timeit.default_timer()
+    start_time = time.clock()
 
     epoch = 0
     done_looping = False
 
     while (epoch < n_epochs) and (not done_looping):
         epoch = epoch + 1
-        for minibatch_index in range(n_train_batches):
+        for minibatch_index in xrange(n_train_batches):
 
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
             if iter % 100 == 0:
-                print('training @ iter = ', iter)
+                print 'training @ iter = ', iter
             cost_ij = train_model(minibatch_index)
 
             if (iter + 1) % validation_frequency == 0:
 
                 # compute zero-one loss on validation set
                 validation_losses = [validate_model(i) for i
-                                     in range(n_valid_batches)]
+                                     in xrange(n_valid_batches)]
                 this_validation_loss = numpy.mean(validation_losses)
                 print('epoch %i, minibatch %i/%i, validation error %f %%' %
                       (epoch, minibatch_index + 1, n_train_batches,
@@ -320,30 +407,75 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
                     # test it on the test set
                     test_losses = [
                         test_model(i)
-                        for i in range(n_test_batches)
-                    ]
+                        for i in xrange(n_test_batches)
+                        ]
+
                     test_score = numpy.mean(test_losses)
                     print(('     epoch %i, minibatch %i/%i, test error of '
                            'best model %f %%') %
                           (epoch, minibatch_index + 1, n_train_batches,
                            test_score * 100.))
 
+                     #dev:
+
+                    Embedding_D = numpy.concatenate([get_hidden_values(i) for i
+                                   in xrange(n_valid_batches)])
+                    print " len embed", len(Embedding_D)
+                    predictions_D = numpy.concatenate([ygen_model_D(i) for i
+                                   in xrange(n_valid_batches)])
+                    labels_D = numpy.concatenate([sgen_label_D(i) for i
+                                   in xrange(n_valid_batches)])
+
+                    #test
+                    predictions = numpy.concatenate([ygen_model(i) for i
+                                   in xrange(n_test_batches)])
+                    labels = numpy.concatenate([sgen_label(i) for i
+                                   in xrange(n_test_batches)])
+
+
+
+
             if patience <= iter:
                 done_looping = True
                 break
 
-    end_time = timeit.default_timer()
+    end_time = time.clock()
     print('Optimization complete.')
     print('Best validation score of %f %% obtained at iteration %i, '
           'with test performance %f %%' %
           (best_validation_loss * 100., best_iter + 1, test_score * 100.))
-    print(('The code for file ' +
-           os.path.split(__file__)[1] +
-           ' ran for %.2fm' % ((end_time - start_time) / 60.)), file=sys.stderr)
+
+
+    predictionsFilename = 'predictions/CNN/test/Test_prediction.HiddenLayer1' + wx  + '-h' + str(nbHidden)  + '-bsz'+str(batch_size) +'-lr'+str(learning_rate) + '-epoch' + str(epoch) +'-bestiter'+str(best_iter)+'-besttestscore'+ str(test_score)+act+'.txt'
+    predictionsFile = open(predictionsFilename,'a')
+    #print "pred = ",len (predictions), "lable ",len (labels)
+    for i in xrange(len (predictions)):
+        predictionsFile.write(sconvert(labels[i])+' '+sconvert(predictions[i])+'\n')
+        #print sconvert(labels[i])+' '+sconvert(predictions[i])+'\n'
+    predictionsFile.close()
+
+    #savParamFileName='param/DNN/H1/test/Test-param.HiddenLayer1-2' + wx +  '-h' + str(nbHidden)  + '-bsz'+str(batch_size) +'-lr'+str(learning_rate) + '-epoch' + str(epoch) +'-bestiter'+str(best_iter)+'-besttestscore'+str(test_score)+act+'-finalwp100.pkl'
+    #classifier.save_param(savParamFileName)
+   #dev :
+    predictionsFilename = 'predictions/CNN/dev/Dev_prediction.HiddenLayer1' + wx  + '-h' + str(nbHidden)  + '-bsz'+str(batch_size) +'-lr'+str(learning_rate) + '-epoch' + str(epoch) +'-bestiter'+str(best_iter)+'-bestdevscore'+ str(best_validation_loss * 100)+act+'.txt'
+    predictionsFile = open(predictionsFilename,'a')
+    #print "pred = ",len (predictions), "lable ",len (labels)
+    for i in xrange(len (predictions_D)):
+        predictionsFile.write(sconvert(labels_D[i])+' '+sconvert(predictions_D[i])+'\n')
+        #print sconvert(labels[i])+' '+sconvert(predictions[i])+'\n'
+    predictionsFile.close()
+
+    savParamFileName='param/CNN/param.HiddenLayer1'+ wx +  '-h' + str(nbHidden)  + '-bsz'+str(batch_size) +'-lr'+str(learning_rate) + '-epoch' + str(epoch) +'-bestiter'+str(best_iter)+'-bestdevscore'+str(best_validation_loss * 100)+'-besttestscore'+str(test_score)+act+'-finalwp100.pkl'
+    save_param(savParamFileName)
+
+
+    print >> sys.stderr, ('The code for file ' +
+                          os.path.split(__file__)[1] +
+                          ' ran for %.2fm' % ((end_time - start_time) / 60.))
 
 if __name__ == '__main__':
     evaluate_lenet5()
 
 
 def experiment(state, channel):
-    evaluate_lenet5(state.learning_rate, dataset=state.dataset)
+    evaluate_lenet5()

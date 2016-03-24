@@ -47,8 +47,8 @@ relu = lambda x : x * (x>0)
 c_filter = int(sys.argv[3])
 m_pooling = int(sys.argv[4])
 wx = re.sub('gz','',datasetfilename)+"filter-"+sys.argv[3]+"pooling"+sys.argv[4]+"Str5f15_5"
-print wx
-print type(wx), type(nbHidden)
+print (wx)
+print (type(wx), type(nbHidden))
 
 class LeNetConvPoolLayer(object):
     """Pool Layer of a convolutional network """
